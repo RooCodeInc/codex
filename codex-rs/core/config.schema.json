@@ -2483,6 +2483,10 @@
     "SkillsConfig": {
       "additionalProperties": false,
       "properties": {
+        "announce_usage": {
+          "description": "Whether the automatic skills instructions include guidance to announce skill usage.",
+          "type": "boolean"
+        },
         "bundled": {
           "$ref": "#/definitions/BundledSkillsConfig"
         },

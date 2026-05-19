@@ -24,6 +24,7 @@ pub const SKILL_DESCRIPTIONS_REMOVED_WARNING_PREFIX: &str =
     "Exceeded skills context budget. All skill descriptions were removed and";
 pub const SKILLS_INTRO_WITH_ABSOLUTE_PATHS: &str = "A skill is a set of local instructions to follow that is stored in a `SKILL.md` file. Below is the list of skills that can be used. Each entry includes a name, description, and file path so you can open the source for full instructions when using a specific skill.";
 pub const SKILLS_INTRO_WITH_ALIASES: &str = "A skill is a set of local instructions to follow that is stored in a `SKILL.md` file. Below is the list of skills that can be used. Each entry includes a name, description, and a short path that can be expanded into an absolute path using the skill roots table.";
+pub const SKILLS_ANNOUNCEMENT_GUIDANCE_LINE: &str = "  - Announce which skill(s) you're using and why (one short line). If you skip an obvious skill, say why.";
 pub const SKILLS_HOW_TO_USE_WITH_ABSOLUTE_PATHS: &str = r###"- Discovery: The list above is the skills available in this session (name + description + file path). Skill bodies live on disk at the listed paths.
 - Trigger rules: If the user names a skill (with `$SkillName` or plain text) OR the task clearly matches a skill's description shown above, you must use that skill for that turn. Multiple mentions mean use them all. Do not carry skills across turns unless re-mentioned.
 - Missing/blocked: If a named skill isn't in the list or the path can't be read, say so briefly and continue with the best fallback.
@@ -59,7 +60,11 @@ pub const SKILLS_HOW_TO_USE_WITH_ALIASES: &str = r###"- Discovery: The list abov
   - When variants exist (frameworks, providers, domains), pick only the relevant reference file(s) and note that choice.
 - Safety and fallback: If a skill can't be applied cleanly (missing files, unclear instructions), state the issue, pick the next-best approach, and continue."###;
 
-pub fn render_available_skills_body(skill_root_lines: &[String], skill_lines: &[String]) -> String {
+pub fn render_available_skills_body(
+    skill_root_lines: &[String],
+    skill_lines: &[String],
+    announce_usage: bool,
+) -> String {
     let mut lines: Vec<String> = Vec::new();
     lines.push("## Skills".to_string());
     if skill_root_lines.is_empty() {
@@ -78,9 +83,21 @@ pub fn render_available_skills_body(skill_root_lines: &[String], skill_lines: &[
     } else {
         SKILLS_HOW_TO_USE_WITH_ALIASES
     };
-    lines.push(how_to_use.to_string());
+    lines.push(render_how_to_use(how_to_use, announce_usage));
 
     format!("\n{}\n", lines.join("\n"))
+}
+
+fn render_how_to_use(how_to_use: &str, announce_usage: bool) -> String {
+    if announce_usage {
+        return how_to_use.to_string();
+    }
+
+    how_to_use
+        .lines()
+        .filter(|line| *line != SKILLS_ANNOUNCEMENT_GUIDANCE_LINE)
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -786,8 +803,13 @@ fn aliased_metadata_overhead_cost(
     skill_root_lines: &[String],
 ) -> usize {
     let empty_skill_lines: &[String] = &[];
-    let absolute_body = render_available_skills_body(&[], empty_skill_lines);
-    let aliased_body = render_available_skills_body(skill_root_lines, empty_skill_lines);
+    let absolute_body =
+        render_available_skills_body(&[], empty_skill_lines, /*announce_usage*/ true);
+    let aliased_body = render_available_skills_body(
+        skill_root_lines,
+        empty_skill_lines,
+        /*announce_usage*/ true,
+    );
     budget
         .cost(&aliased_body)
         .saturating_sub(budget.cost(&absolute_body))
@@ -1004,6 +1026,42 @@ mod tests {
             default_skill_metadata_budget(Some(-1)),
             SkillMetadataBudget::Characters(DEFAULT_SKILL_METADATA_CHAR_BUDGET)
         );
+    }
+
+    #[test]
+    fn render_body_includes_announcement_guidance_when_enabled() {
+        let skill_lines = vec!["- example: test skill (file: /tmp/example/SKILL.md)".to_string()];
+
+        let absolute =
+            render_available_skills_body(&[], &skill_lines, /*announce_usage*/ true);
+        let aliased = render_available_skills_body(
+            &["- `r0` = `/tmp`".to_string()],
+            &skill_lines,
+            /*announce_usage*/ true,
+        );
+
+        assert!(absolute.contains(SKILLS_ANNOUNCEMENT_GUIDANCE_LINE));
+        assert!(aliased.contains(SKILLS_ANNOUNCEMENT_GUIDANCE_LINE));
+        assert!(absolute.contains(SKILLS_HOW_TO_USE_WITH_ABSOLUTE_PATHS));
+        assert!(aliased.contains(SKILLS_HOW_TO_USE_WITH_ALIASES));
+    }
+
+    #[test]
+    fn render_body_omits_only_announcement_guidance_when_disabled() {
+        let skill_lines = vec!["- example: test skill (file: /tmp/example/SKILL.md)".to_string()];
+        let skill_root_lines = vec!["- `r0` = `/tmp`".to_string()];
+
+        for roots in [&[][..], skill_root_lines.as_slice()] {
+            let with_guidance =
+                render_available_skills_body(roots, &skill_lines, /*announce_usage*/ true);
+            let without_guidance =
+                render_available_skills_body(roots, &skill_lines, /*announce_usage*/ false);
+            let expected =
+                with_guidance.replace(&format!("\n{SKILLS_ANNOUNCEMENT_GUIDANCE_LINE}"), "");
+
+            assert_eq!(without_guidance, expected);
+            assert!(!without_guidance.contains(SKILLS_ANNOUNCEMENT_GUIDANCE_LINE));
+        }
     }
 
     #[test]

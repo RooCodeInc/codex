@@ -368,6 +368,7 @@ fn parses_bundled_skills_config() {
         r#"
 [skills]
 include_instructions = false
+announce_usage = false
 
 [skills.bundled]
 enabled = false
@@ -380,6 +381,7 @@ enabled = false
         Some(SkillsConfig {
             bundled: Some(BundledSkillsConfig { enabled: false }),
             include_instructions: Some(false),
+            announce_usage: Some(false),
             config: Vec::new(),
         })
     );
@@ -7805,6 +7807,7 @@ async fn test_precedence_fixture_with_o3_profile() -> std::io::Result<()> {
             include_apps_instructions: true,
             include_collaboration_mode_instructions: true,
             include_skill_instructions: true,
+            skill_announce_usage: true,
             include_environment_context: true,
             compact_prompt: None,
             forced_chatgpt_workspace_id: None,
@@ -8259,6 +8262,7 @@ async fn test_precedence_fixture_with_gpt3_profile() -> std::io::Result<()> {
         include_apps_instructions: true,
         include_collaboration_mode_instructions: true,
         include_skill_instructions: true,
+        skill_announce_usage: true,
         include_environment_context: true,
         compact_prompt: None,
         forced_chatgpt_workspace_id: None,
@@ -8427,6 +8431,7 @@ async fn test_precedence_fixture_with_zdr_profile() -> std::io::Result<()> {
         include_apps_instructions: true,
         include_collaboration_mode_instructions: true,
         include_skill_instructions: true,
+        skill_announce_usage: true,
         include_environment_context: true,
         compact_prompt: None,
         forced_chatgpt_workspace_id: None,
@@ -8580,6 +8585,7 @@ async fn test_precedence_fixture_with_gpt5_profile() -> std::io::Result<()> {
         include_apps_instructions: true,
         include_collaboration_mode_instructions: true,
         include_skill_instructions: true,
+        skill_announce_usage: true,
         include_environment_context: true,
         compact_prompt: None,
         forced_chatgpt_workspace_id: None,
@@ -9933,6 +9939,41 @@ include_environment_context = true
     assert!(config.include_collaboration_mode_instructions);
     assert!(!config.include_skill_instructions);
     assert!(config.include_environment_context);
+    Ok(())
+}
+
+#[tokio::test]
+async fn skill_announce_usage_defaults_to_enabled() -> std::io::Result<()> {
+    let codex_home = TempDir::new()?;
+
+    let config = ConfigBuilder::default()
+        .codex_home(codex_home.path().to_path_buf())
+        .fallback_cwd(Some(codex_home.path().to_path_buf()))
+        .build()
+        .await?;
+
+    assert!(config.skill_announce_usage);
+    Ok(())
+}
+
+#[tokio::test]
+async fn skill_announce_usage_can_be_disabled() -> std::io::Result<()> {
+    let codex_home = TempDir::new()?;
+    std::fs::write(
+        codex_home.path().join(CONFIG_TOML_FILE),
+        r#"[skills]
+announce_usage = false
+"#,
+    )?;
+
+    let config = ConfigBuilder::default()
+        .codex_home(codex_home.path().to_path_buf())
+        .fallback_cwd(Some(codex_home.path().to_path_buf()))
+        .build()
+        .await?;
+
+    assert!(config.include_skill_instructions);
+    assert!(!config.skill_announce_usage);
     Ok(())
 }
 

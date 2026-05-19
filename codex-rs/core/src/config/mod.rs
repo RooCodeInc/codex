@@ -597,6 +597,9 @@ pub struct Config {
     /// Whether to inject the `<skills_instructions>` developer block.
     pub include_skill_instructions: bool,
 
+    /// Whether the automatic skills instructions include guidance to announce skill usage.
+    pub skill_announce_usage: bool,
+
     /// Whether to inject the `<environment_context>` user block.
     pub include_environment_context: bool,
 
@@ -3186,6 +3189,11 @@ impl Config {
             .as_ref()
             .and_then(|skills| skills.include_instructions)
             .unwrap_or(true);
+        let skill_announce_usage = cfg
+            .skills
+            .as_ref()
+            .and_then(|skills| skills.announce_usage)
+            .unwrap_or(true);
         let include_environment_context = config_profile
             .include_environment_context
             .or(cfg.include_environment_context)
@@ -3411,6 +3419,7 @@ impl Config {
             include_apps_instructions,
             include_collaboration_mode_instructions,
             include_skill_instructions,
+            skill_announce_usage,
             include_environment_context,
             // The config.toml omits "_mode" because it's a config file. However, "_mode"
             // is important in code to differentiate the mode from the store implementation.
