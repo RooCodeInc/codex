@@ -192,6 +192,7 @@ fn new_config(model: Option<String>, arg0_paths: Arg0DispatchPaths) -> anyhow::R
         include_apps_instructions: false,
         include_collaboration_mode_instructions: false,
         include_skill_instructions: false,
+        skill_announce_usage: false,
         include_environment_context: false,
         compact_prompt: None,
         notify: None,

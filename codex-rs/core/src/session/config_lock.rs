@@ -170,10 +170,9 @@ fn save_config_resolved_fields(
     agents.job_max_runtime_seconds = config.agent_job_max_runtime_seconds;
     agents.interrupt_message = Some(config.agent_interrupt_message_enabled);
 
-    lock_config
-        .skills
-        .get_or_insert_with(Default::default)
-        .include_instructions = Some(config.include_skill_instructions);
+    let skills = lock_config.skills.get_or_insert_with(Default::default);
+    skills.include_instructions = Some(config.include_skill_instructions);
+    skills.announce_usage = Some(config.skill_announce_usage);
 
     Ok(())
 }
@@ -224,6 +223,12 @@ mod tests {
         assert_eq!(lock.instructions, Some(sc.base_instructions.clone()));
         assert_eq!(lock.developer_instructions, sc.developer_instructions);
         assert_eq!(lock.compact_prompt, sc.compact_prompt);
+        assert_eq!(
+            lock.skills
+                .as_ref()
+                .and_then(|skills| skills.announce_usage),
+            Some(sc.original_config_do_not_use.skill_announce_usage)
+        );
         assert_eq!(lock.model, Some(sc.collaboration_mode.model().to_string()));
         assert_eq!(
             lock.model_reasoning_effort,
